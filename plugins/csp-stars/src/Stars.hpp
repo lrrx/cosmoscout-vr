@@ -18,6 +18,8 @@
 
 #include "../../../src/cs-utils/utils.hpp"
 
+#include "newrenderer/StarRenderer.hpp"
+
 #include <map>
 #include <memory>
 #include <vector>
@@ -56,7 +58,8 @@ class Stars : public IVistaOpenGLDraw {
     eScaledDisc,
     eGlareDisc,
     eSprite,
-    eSRPoint
+    eSRPoint,
+    eNewRenderer,
   };
 
   Stars();
@@ -177,7 +180,7 @@ class Stars : public IVistaOpenGLDraw {
   std::vector<Star>                  mStars;
   std::map<CatalogType, std::string> mCatalogs;
 
-  DrawMode mDrawMode = DrawMode::eSRPoint;
+  DrawMode mDrawMode = DrawMode::eNewRenderer;
 
   bool  mShaderDirty                = true;
   bool  mEnableHDR                  = true;
@@ -222,6 +225,9 @@ class Stars : public IVistaOpenGLDraw {
   static constexpr size_t NUM_COLUMNS  = cs::utils::enumCast(CatalogColumn::eCount);
 
   static const std::array<std::array<int, NUM_COLUMNS>, NUM_CATALOGS> cColumnMapping;
+
+private:
+  StarRenderer starRenderer;
 };
 
 } // namespace csp::stars

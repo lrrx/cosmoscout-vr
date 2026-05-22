@@ -7,11 +7,16 @@
 
 #include "Stars.hpp"
 
+#include "newrenderer/StarRenderer.hpp"
+#include "newrenderer/util/shader_utils.hpp"
+
 #include "logger.hpp"
 
 #include "../../../src/cs-graphics/TextureLoader.hpp"
 #include "../../../src/cs-utils/FrameStats.hpp"
 #include "../../../src/cs-utils/filesystem.hpp"
+#include <cstdlib>
+#include <variant>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -34,6 +39,7 @@
 #include <array>
 #include <fstream>
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 namespace csp::stars {
 
@@ -71,7 +77,12 @@ const int Stars::cCacheVersion = 4;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Stars::Stars() {
+Stars::Stars()
+: starRenderer{glm::uvec2{1920, 1080}}
+{
+  starRenderer.preprocessStars({});
+  starRenderer.prepareGpuBuffers();
+  
   for (auto const& viewport : GetVistaSystem()->GetDisplayManager()->GetViewports()) {
     mSRTargets[viewport.second] = {};
   }
@@ -329,7 +340,6 @@ bool Stars::Do() {
   glEnable(GL_BLEND);
   glBlendFunc(GL_ONE, GL_ONE);
 
-  // Get matrices.
   std::array<GLfloat, 16> glMat{};
   glGetFloatv(GL_MODELVIEW_MATRIX, glMat.data());
   VistaTransformMatrix matModelView(glMat.data(), true);
@@ -337,6 +347,46 @@ bool Stars::Do() {
   glGetFloatv(GL_PROJECTION_MATRIX, glMat.data());
   VistaTransformMatrix matProjection(glMat.data(), true);
 
+
+  glUseProgram(0);
+  glBindVertexArray(0);
+
+  glm::mat4 matMV = glm::make_mat4(matModelView.GetData());
+  glm::mat4 matP = glm::make_mat4(matProjection.GetData());
+  
+  glm::vec3 cameraPosParsec = glm::vec3(glm::inverse(matMV) * glm::vec4(0,0,0,1));
+
+  starRenderer.run(cameraPosParsec , matMV, matP);
+
+  glUseProgram(0);
+  glBindVertexArray(0);
+
+  /*static bool initialized = 0;
+  static GLuint prog = 42;
+  static GLuint vao = 42;
+
+  if(!initialized) {
+    std::cout << "initializing .... test1234" << std::endl;
+    prog = createProgramFromFiles("quad.vert", "quad.frag");
+    glGenVertexArrays(1, &vao);
+  }
+
+  glUseProgram(prog);
+  glBindVertexArray(vao);
+  glDrawArrays(GL_TRIANGLES, 0, 6);
+  GLenum e = glGetError();
+  if(e != 0) { 
+    std::cout << "GL err 0x" << std::hex << e << '\n';
+  }
+
+  std::cout << "prog: " << prog << std::endl;
+  std::cout << "vao:  " << vao << std::endl;
+
+  glBindVertexArray(0);
+  glUseProgram(0);*/
+
+  // Get matrices.
+#ifdef pepepg 
   if (mShaderDirty) {
     std::string defines;
 
@@ -562,14 +612,17 @@ bool Stars::Do() {
       glTexStorage2D(GL_TEXTURE_2D, 1, GL_R32UI, width, height);
     }
 
-    glUniform1i(mUniforms.starCount, static_cast<int>(mStars.size()));
+    /*glUniform1i(mUniforms.starCount, static_cast<int>(mStars.size()));
 
     {
       cs::utils::FrameStats::ScopedTimer timer("Software Rasterizer");
       glClearTexImage(data.mImage->GetId(), 0, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
       glBindImageTexture(0, data.mImage->GetId(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32UI);
 
-      glDispatchCompute(static_cast<uint32_t>(std::ceil(1.0 * mStars.size() / 256)), 1, 1);
+      glDispatchCompute(static_cast<uint32_t>(std::ceil(1.0 * mStars.size() / 256
+      
+      
+      )), 1, 1);
       glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     }
 
@@ -581,7 +634,9 @@ bool Stars::Do() {
       data.mImage->Bind(GL_TEXTURE0);
 
       glDrawArrays(GL_TRIANGLES, 0, 3);
-    }
+    }*/
+
+
 
   } else {
     // The other draw modes are very simple. They are either using point primitives or a geometry
@@ -595,6 +650,9 @@ bool Stars::Do() {
   }
 
   mStarShader.Release();
+
+#endif
+  
 
   glDepthMask(GL_TRUE);
   glPopAttrib();

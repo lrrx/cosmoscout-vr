@@ -1,0 +1,18 @@
+#version 460 core
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(binding = 0, r32f) uniform writeonly image2D uInterleavedAccumulationBuffer;
+layout(binding = 1, rgba8) uniform writeonly image2D uFrameBuffer;
+
+uniform ivec2 uResolution;
+
+void main() {
+    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    if (pixel.x >= uResolution.x || pixel.y >= uResolution.y) return;
+
+    //TODO: we only need to clear interleaved buffer technically, framebuffer should be overwritten fully in composite pass
+    imageStore(uFrameBuffer, pixel, vec4(0.0));
+
+    imageStore(uInterleavedAccumulationBuffer, pixel * ivec2(2,1) + ivec2(0,0), vec4(0.0)); //TODO: can we optimize this by writing 4 channels at once and doing 4-strides?
+    imageStore(uInterleavedAccumulationBuffer, pixel * ivec2(2,1) + ivec2(1,0), vec4(0.0));
+}

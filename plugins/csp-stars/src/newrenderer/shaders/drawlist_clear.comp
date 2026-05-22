@@ -1,0 +1,48 @@
+#version 460 core
+layout(local_size_x = 64) in;
+
+#define NUM_PRIMARY_TILES 510
+
+struct ChunkMeta {
+    uint startBatch;
+    uint batchCount;
+    uint lastBatchRowCount;
+    uint chunkID;
+};
+
+struct Job {
+    uint count;
+    uint work;
+    uint pad1;
+    uint tileID_flat;
+    ChunkMeta list[MAX_TILE_CHUNKS]; //IDEA: just limit this an distribute tiles to workgroups equally
+};
+
+// First 12 bytes are the indirect dispatch args; same buffer is bound as
+// GL_SHADER_STORAGE_BUFFER (binding 5) and GL_DISPATCH_INDIRECT_BUFFER.
+struct DispatchHeader {
+    uint x_count;        // == total jobs allocated (primaries + overflow)
+    uint y_count;        // == 1
+    uint z_count;        // == 1
+    uint pad0;
+    uint tip_pointers[NUM_PRIMARY_TILES];   // current write target per tile
+};
+
+layout(std430, binding = 2) coherent buffer GpuJobSSBO { Job joblist[]; };
+layout(std430, binding = 5) coherent buffer GpuDispatchHeaderSSBO { DispatchHeader dh; };
+
+void main() {
+    uint tile = gl_GlobalInvocationID.x;
+    if (tile >= NUM_PRIMARY_TILES) return;
+
+    if (tile == 0u) {
+        dh.x_count = NUM_PRIMARY_TILES;   // primaries are pre-allocated jobs
+        dh.y_count = 1u;
+        dh.z_count = 1u;
+    }
+
+    dh.tip_pointers[tile]      = tile;    // each tile's primary block = its index
+    joblist[tile].work        = 0u;
+    joblist[tile].count        = 0u;
+    joblist[tile].tileID_flat  = tile;
+}

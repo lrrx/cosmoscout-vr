@@ -125,6 +125,8 @@ class Stars : public IVistaOpenGLDraw {
   /// @param sFilename    A path to an uncompressed grayscale TGA image.
   void setStarTexture(const std::string& filename);
 
+  void drawNewStars(VistaTransformMatrix matModelView, VistaTransformMatrix matProjection);
+
   /// The method Do() gets the callback from scene graph during the rendering process.
   bool Do() override;
 

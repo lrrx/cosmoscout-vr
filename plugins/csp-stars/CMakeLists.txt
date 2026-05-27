@@ -12,6 +12,9 @@ if (NOT CSP_STARS)
 endif()
 
 # build plugin -------------------------------------------------------------------------------------
+# Pull in newrenderer from wherever you've symlinked / copied it
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/externals/newrenderer
+                 ${CMAKE_CURRENT_BINARY_DIR}/newrenderer-build)
 
 file(GLOB SOURCE_FILES src/*.cpp)
 
@@ -35,7 +38,11 @@ add_library(csp-stars SHARED
 target_link_libraries(csp-stars
   PUBLIC
     cs-core
+  PRIVATE
+    NewStarRenderer
 )
+
+target_link_libraries(csp-stars PRIVATE NewStarRenderer)
 
 # Add this Plugin to a "plugins" folder in your IDE.
 set_property(TARGET csp-stars PROPERTY FOLDER "plugins")

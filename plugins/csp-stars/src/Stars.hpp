@@ -18,8 +18,6 @@
 
 #include "../../../src/cs-utils/utils.hpp"
 
-#include "newrenderer/StarRenderer.hpp"
-
 #include <map>
 #include <memory>
 #include <vector>
@@ -63,7 +61,7 @@ class Stars : public IVistaOpenGLDraw {
   };
 
   Stars();
-  ~Stars() = default;
+  ~Stars();
 
   /// It is possible to load multiple catalogs, currently Hipparcos and any of Tycho or Tycho2 can
   /// be loaded together. Stars which are in both catalogs will be loaded from Hipparcos. Once
@@ -225,9 +223,6 @@ class Stars : public IVistaOpenGLDraw {
   static constexpr size_t NUM_COLUMNS  = cs::utils::enumCast(CatalogColumn::eCount);
 
   static const std::array<std::array<int, NUM_COLUMNS>, NUM_CATALOGS> cColumnMapping;
-
-private:
-  StarRenderer starRenderer;
 };
 
 } // namespace csp::stars

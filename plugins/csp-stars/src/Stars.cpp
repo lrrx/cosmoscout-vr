@@ -7,8 +7,7 @@
 
 #include "Stars.hpp"
 
-#include "newrenderer/StarRenderer.hpp"
-#include "newrenderer/util/shader_utils.hpp"
+#include <newstar.hpp>
 
 #include "logger.hpp"
 
@@ -38,8 +37,13 @@
 
 #include <array>
 #include <fstream>
+#ifndef GLM_ENABLE_EXPERIMENTAL
+#define GLMGLM_ENABLE_EXPERIMENTAL
+#endif
+
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 namespace csp::stars {
 
@@ -78,10 +82,8 @@ const int Stars::cCacheVersion = 4;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Stars::Stars()
-: starRenderer{glm::uvec2{1920, 1080}}
 {
-  starRenderer.preprocessStars({});
-  starRenderer.prepareGpuBuffers();
+  newstar_init(glm::uvec2{1920, 1080});
   
   for (auto const& viewport : GetVistaSystem()->GetDisplayManager()->GetViewports()) {
     mSRTargets[viewport.second] = {};
@@ -347,16 +349,22 @@ bool Stars::Do() {
   glGetFloatv(GL_PROJECTION_MATRIX, glMat.data());
   VistaTransformMatrix matProjection(glMat.data(), true);
 
-
   glUseProgram(0);
   glBindVertexArray(0);
 
   glm::mat4 matMV = glm::make_mat4(matModelView.GetData());
-  glm::mat4 matP = glm::make_mat4(matProjection.GetData());
-  
-  glm::vec3 cameraPosParsec = glm::vec3(glm::inverse(matMV) * glm::vec4(0,0,0,1));
+  glm::mat4 invMatMV = glm::make_mat4(matModelView.GetInverted().GetData());
+  std::cout << matModelView.GetValue(0, 0) << std::endl;
+  std::cout << glm::to_string(matMV) << std::endl;
 
-  starRenderer.run(cameraPosParsec , matMV, matP);
+  glm::mat4 matP = glm::make_mat4(matProjection.GetData());  
+  glm::mat4 invMatP = glm::make_mat4(matProjection.GetInverted().GetData());  
+
+  constexpr float parsecToMeter = 3.08567758e16;
+  glm::vec3 cameraPosParsec = glm::vec3(invMatMV * glm::vec4(0,0,0,1)) / parsecToMeter;
+  std::cout << glm::to_string(cameraPosParsec) << std::endl;
+
+  newstar_render(matMV, invMatMV, matP, invMatP);
 
   glUseProgram(0);
   glBindVertexArray(0);
@@ -981,6 +989,10 @@ void Stars::buildBackgroundVAO() {
   mBackgroundVAO.EnableAttributeArray(0);
   mBackgroundVAO.SpecifyAttributeArrayFloat(
       0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0, &mBackgroundVBO);
+}
+
+Stars::~Stars() {
+  newstar_delete();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

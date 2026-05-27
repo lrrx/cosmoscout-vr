@@ -11,11 +11,6 @@ if (NOT CSP_STARS)
   return()
 endif()
 
-# new renderer
-file(GLOB_RECURSE RENDERER_SOURCE_FILES src/newrenderer/*.cpp)
-file(GLOB_RECURSE RENDERER_HEADER_FILES src/newrenderer/*.hpp)
-
-
 # build plugin -------------------------------------------------------------------------------------
 
 file(GLOB SOURCE_FILES src/*.cpp)
@@ -33,8 +28,6 @@ source_group("src/shaders" FILES ${SHADER_FILES})
 add_library(csp-stars SHARED
   ${SOURCE_FILES}
   ${HEADER_FILES}
-  ${RENDERER_SOURCE_FILES}
-  ${RENDERER_HEADER_FILES}
   ${RESOUCRE_FILES}
   ${SHADER_FILES}
 )
@@ -60,5 +53,4 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES
 install(TARGETS csp-stars    DESTINATION "share/plugins")
 install(DIRECTORY "gui"      DESTINATION "share/resources")
 install(DIRECTORY "shaders"  DESTINATION "share/resources")
-install(DIRECTORY "src/newrenderer/shaders"  DESTINATION "share/newrenderer")
 install(DIRECTORY "textures" DESTINATION "share/resources")

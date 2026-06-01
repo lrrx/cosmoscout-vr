@@ -22,6 +22,8 @@
 #include <memory>
 #include <vector>
 
+#include <RawStar.hpp>
+
 namespace csp::stars {
 
 /// If added to the scene graph, this will draw a configurable star background. It is possible to
@@ -125,7 +127,7 @@ class Stars : public IVistaOpenGLDraw {
   /// @param sFilename    A path to an uncompressed grayscale TGA image.
   void setStarTexture(const std::string& filename);
 
-  void drawNewStars(VistaTransformMatrix matModelView, VistaTransformMatrix matProjection);
+  void drawNewStars(VistaTransformMatrix matModelView, VistaTransformMatrix matProjection, float luminanceMultiplicator, bool enableHDR);
 
   /// The method Do() gets the callback from scene graph during the rendering process.
   bool Do() override;
@@ -178,6 +180,7 @@ class Stars : public IVistaOpenGLDraw {
   VistaBufferObject      mBackgroundVBO;
 
   std::vector<Star>                  mStars;
+  std::vector<RawStar>               mRawStars;
   std::map<CatalogType, std::string> mCatalogs;
 
   DrawMode mDrawMode = DrawMode::eNewRenderer;

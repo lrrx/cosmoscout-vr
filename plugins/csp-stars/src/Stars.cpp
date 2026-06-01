@@ -83,7 +83,7 @@ const int Stars::cCacheVersion = 4;
 
 Stars::Stars()
 {
-  newstar_init(glm::uvec2{1920, 1080});
+  newstar_init(glm::uvec2{1600, 900});
   
   for (auto const& viewport : GetVistaSystem()->GetDisplayManager()->GetViewports()) {
     mSRTargets[viewport.second] = {};
@@ -145,6 +145,8 @@ void Stars::setCatalogs(std::map<Stars::CatalogType, std::string> catalogs) {
     // Create buffers,
     buildStarVAO();
     buildBackgroundVAO();
+
+    newstar_setdata(mRawStars);
   }
 }
 
@@ -319,17 +321,15 @@ void Stars::setStarFiguresTexture(std::string const& filename) {
   }
 }
 
-void Stars::drawNewStars(VistaTransformMatrix matModelView, VistaTransformMatrix matProjection) {
+void Stars::drawNewStars(VistaTransformMatrix matModelView, VistaTransformMatrix matProjection, float luminanceMultiplicator, bool enableHDR) {
   //use vista routine for matrix inversion, since it works better with badly conditioned matrices
   //this happens e.g. with modelview matrix at large view distances
   //could also pass double precision 4x4 matrices and use standard glm invert, but for now this is fine
 
   glm::mat4 matMV = glm::make_mat4(matModelView.GetData());
-  glm::mat4 invMatMV = glm::make_mat4(matModelView.GetInverted().GetData());
-  glm::mat4 matP = glm::make_mat4(matProjection.GetData());  
-  glm::mat4 invMatP = glm::make_mat4(matProjection.GetInverted().GetData());  
+  glm::mat4 matP = glm::make_mat4(matProjection.GetData());    
 
-  newstar_render(matMV, invMatMV, matP, invMatP);
+  newstar_render(matMV, matP, luminanceMultiplicator, enableHDR);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -344,6 +344,8 @@ bool Stars::Do() {
     return true;
   }
 
+  float fadeOut1 = mEnableHDR ? 1.F : sceneBrightness;
+
   cs::utils::FrameStats::ScopedTimer             timer("Render Stars");
   cs::utils::FrameStats::ScopedSamplesCounter    samplesCounter("Render Stars");
   cs::utils::FrameStats::ScopedPrimitivesCounter primitivesCounter("Render Stars");
@@ -357,7 +359,7 @@ bool Stars::Do() {
 
   if(mDrawMode == DrawMode::eNewRenderer) {
     glPushAttrib(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_ENABLE_BIT);
-    drawNewStars(matModelView, matProjection);
+    drawNewStars(matModelView, matProjection, mLuminanceMultiplicator * fadeOut1, mEnableHDR);
     //reset gl state
     glUseProgram(0);
     glBindVertexArray(0);
@@ -559,9 +561,8 @@ bool Stars::Do() {
   mStarShader.SetUniform(mUniforms.starMaxMagnitude, mMaxMagnitude);
   mStarShader.SetUniform(mUniforms.starSolidAngle, mSolidAngle);
 
-  float fadeOut = mEnableHDR ? 1.F : sceneBrightness;
   if (mDrawMode != DrawMode::eSRPoint) {
-    mStarShader.SetUniform(mUniforms.starLuminanceMul, mLuminanceMultiplicator * fadeOut);
+    mStarShader.SetUniform(mUniforms.starLuminanceMul, mLuminanceMultiplicator * fadeOut1);
   }
 
   VistaTransformMatrix matInverseMV(matModelView.GetInverted());
@@ -583,6 +584,8 @@ bool Stars::Do() {
 
     int width, height;
     viewport->GetViewportProperties()->GetSize(width, height);
+
+    std::cout << width << "\t" << height << std::endl;
 
     if (data.mWidth != width || data.mHeight != height) {
       data.mWidth  = width;
@@ -614,7 +617,8 @@ bool Stars::Do() {
     {
       cs::utils::FrameStats::ScopedTimer timer("Blit Results");
       mSRBlitShader.Bind();
-      mSRBlitShader.SetUniform(mUniforms.starLuminanceMul, mLuminanceMultiplicator * fadeOut);
+      std::cout << "cosmoscout uniform: " << mLuminanceMultiplicator * fadeOut1 << std::endl;
+      mSRBlitShader.SetUniform(mUniforms.starLuminanceMul, mLuminanceMultiplicator * fadeOut1);
 
       data.mImage->Bind(GL_TEXTURE0);
 
@@ -900,6 +904,16 @@ bool Stars::readStarCache(const std::string& sCacheFile) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Stars::buildStarVAO() {
+  /*decltype(mStars) stars2{};
+  for(auto const& it : mStars) {
+    float fDist = 1000.F / it.mParallax;
+    if(fDist > 100.0 || it.mParallax < 0.0001f) continue;
+    
+    stars2.push_back(it);
+  }
+
+  mStars = stars2;*/
+
   int                index(0);
   const int          iElementCount(5);
   std::vector<float> data(iElementCount * mStars.size());
@@ -921,6 +935,11 @@ void Stars::buildStarVAO() {
     data[index + 2] = starPos[2];
     data[index + 3] = it->mTEff;
     data[index + 4] = it->mMagnitude - 5.F * std::log10(fDist / 10.F);
+
+    RawStar& outputStar = mRawStars.emplace_back();
+    outputStar.mPosition = starPos;
+    outputStar.mTEff = it->mTEff;
+    outputStar.mMagnitude = data[index + 4];
   }
 
   mStarVBO.Bind(GL_ARRAY_BUFFER);

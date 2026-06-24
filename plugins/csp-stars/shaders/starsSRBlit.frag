@@ -17,7 +17,7 @@ void main() {
   vec2 temperatureLuminance = unpackHalf2x16(texture(uImage, vTexcoords).r);
 
   // Discard any pixels which have not been written to.
-  if (any(lessThanEqual(temperatureLuminance, vec2(0.0)))) {
+  if (temperatureLuminance.y <= 0.0) {
     discard;
   }
 

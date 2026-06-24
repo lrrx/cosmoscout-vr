@@ -214,6 +214,14 @@ class Stars : public IVistaOpenGLDraw {
     uint32_t starCount = 0;
   } mUniforms;
 
+  GLuint mGpuProfilingSSBO = 0;
+  
+  struct GpuProfilingStruct {
+    uint32_t debugSSBO_starsDrawn;
+  };
+
+  GpuProfilingStruct mGpuProfilingStruct;
+
   struct SoftwareRasterizerTargets {
     std::unique_ptr<VistaTexture> mImage;
     int                           mWidth  = 0;

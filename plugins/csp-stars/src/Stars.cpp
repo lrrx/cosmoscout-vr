@@ -142,11 +142,37 @@ void Stars::setCatalogs(std::map<Stars::CatalogType, std::string> catalogs) {
       }
     }
 
+    /*std::vector<Star> starscopy = {};
+
+    std::cout << "before copy" << std::endl;
+
+    for (auto it = mStars.begin(); it != mStars.end(); ++it) {
+      // Distance in parsec --- some have parallax of zero; assume a large distance in those cases.
+      float fDist = 1000.F;
+
+      if (it->mParallax > 0.F) {
+        fDist = 1000.F / it->mParallax;
+      }
+ 
+      glm::vec3 starPos = glm::vec3(glm::cos(it->mDeclination) * glm::cos(it->mAscension) * fDist,
+          glm::sin(it->mDeclination) * fDist,
+          glm::cos(it->mDeclination) * glm::sin(it->mAscension) * fDist);
+
+          //star 1 : (glm::length(starPos - glm::vec3(167, 123, 332)) < 10.0);
+          //star 2 : glm::length(starPos - glm::vec3(-291, -145, 13)) < 90.0;
+          //star 3 : glm::length(starPos - glm::vec3(-192, -142, 12.7)) < 90.0;
+      bool inTestArea = glm::length(starPos - glm::vec3(-192, -142, 12.7) * glm::vec3(0.0)) < 500.0;
+      if(!inTestArea) continue;
+      starscopy.push_back(*it);
+    }
+    std::cout << "after filter" << std::endl;
+    mStars = starscopy;
+    std::cout << "after copy" << std::endl;*/
+
+
     // Create buffers,
     buildStarVAO();
     buildBackgroundVAO();
-
-    newstar_setdata(mRawStars);
   }
 }
 
@@ -601,16 +627,33 @@ bool Stars::Do() {
     }
 
     glUniform1i(mUniforms.starCount, static_cast<int>(mStars.size()));
+    std::cout << "mStars.size(): " << mStars.size() << std::endl;
 
     {
+      /*{ // prepare profiling ssbo
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, mGpuProfilingSSBO);
+        const uint32_t zero = 0;
+        glClearBufferData(GL_SHADER_STORAGE_BUFFER, GL_R32UI,
+                        GL_RED_INTEGER, GL_UNSIGNED_INT, &zero);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, mGpuProfilingSSBO);
+      }*/
+
       cs::utils::FrameStats::ScopedTimer timer("Software Rasterizer");
       glClearTexImage(data.mImage->GetId(), 0, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
       glBindImageTexture(0, data.mImage->GetId(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32UI);
 
-      glDispatchCompute(static_cast<uint32_t>(std::ceil(1.0 * mStars.size() / 256
-      
-      
-      )), 1, 1);
+      uint32_t dispatchCount = static_cast<uint32_t>(std::ceil(1.0 * mStars.size() / 256));
+      std::cout << "mStars.size(): " << mStars.size() << std::endl;
+      std::cout << "dispatchCount: " << dispatchCount << std::endl;
+
+      glDispatchCompute(dispatchCount, 1, 1);
+
+/*      { // read back profiling ssbo from GPU
+        glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0,
+                   sizeof(GpuProfilingStruct), &mGpuProfilingStruct);
+        std::cout << "mGpuProfilingStruct.debugSSBO_starsDrawn: " << mGpuProfilingStruct.debugSSBO_starsDrawn << std::endl;
+      }
+*/
       glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     }
 
@@ -904,6 +947,10 @@ bool Stars::readStarCache(const std::string& sCacheFile) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Stars::buildStarVAO() {
+
+  newstar_setdata(mRawStars);
+  mStars.resize(mRawStars.size());
+
   /*decltype(mStars) stars2{};
   for(auto const& it : mStars) {
     float fDist = 1000.F / it.mParallax;
@@ -918,9 +965,9 @@ void Stars::buildStarVAO() {
   const int          iElementCount(5);
   std::vector<float> data(iElementCount * mStars.size());
 
-  for (auto it = mStars.begin(); it != mStars.end(); ++it, index += iElementCount) {
+  for (auto it = mRawStars.begin(); it != mRawStars.end(); ++it, index += iElementCount) {
     // Distance in parsec --- some have parallax of zero; assume a large distance in those cases.
-    float fDist = 1000.F;
+    /*float fDist = 1000.F;
 
     if (it->mParallax > 0.F) {
       fDist = 1000.F / it->mParallax;
@@ -928,19 +975,27 @@ void Stars::buildStarVAO() {
 
     glm::vec3 starPos = glm::vec3(glm::cos(it->mDeclination) * glm::cos(it->mAscension) * fDist,
         glm::sin(it->mDeclination) * fDist,
-        glm::cos(it->mDeclination) * glm::sin(it->mAscension) * fDist);
+        glm::cos(it->mDeclination) * glm::sin(it->mAscension) * fDist);*/
 
-    data[index]     = starPos[0];
-    data[index + 1] = starPos[1];
-    data[index + 2] = starPos[2];
+    data[index]     = it->mPosition.x;//starPos[0];
+    data[index + 1] = it->mPosition.y;//starPos[1];
+    data[index + 2] = it->mPosition.z;//starPos[2];
     data[index + 3] = it->mTEff;
-    data[index + 4] = it->mMagnitude - 5.F * std::log10(fDist / 10.F);
+    data[index + 4] = it->mMagnitude;//it->mMagnitude - 5.F * std::log10(fDist / 10.F);
 
-    RawStar& outputStar = mRawStars.emplace_back();
+    /*RawStar& outputStar = mRawStars.emplace_back();
     outputStar.mPosition = starPos;
     outputStar.mTEff = it->mTEff;
-    outputStar.mMagnitude = data[index + 4];
+    outputStar.mMagnitude = data[index + 4];*/
   }
+
+  std::cout << "starVAO data size():      " << data.size() / 5 << std::endl;
+  std::cout << "starVAO mRawStars size(): " << mRawStars.size() << std::endl;
+
+  glGenBuffers(1, &mGpuProfilingSSBO);
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER, mGpuProfilingSSBO);
+  glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(GpuProfilingStruct),
+                nullptr, GL_DYNAMIC_READ);
 
   mStarVBO.Bind(GL_ARRAY_BUFFER);
   mStarVBO.BufferData(iElementCount * mStars.size() * sizeof(float), data.data(), GL_STATIC_DRAW);
